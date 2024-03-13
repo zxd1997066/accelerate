@@ -540,6 +540,7 @@ class TorchDynamoPlugin(KwargsHandler):
     dynamic: bool = field(default=None, metadata={"help": "Whether to use dynamic shape for tracing"})
     options: Any = field(default=None, metadata={"help": "A dictionary of options to pass to the backend."})
     disable: bool = field(default=False, metadata={"help": "Turn torch.compile() into a no-op for testing"})
+    quant: str = field(default=None, metadata={"help": "Turn torch.compile() inductor backend quantization"})
 
     def __post_init__(self):
         prefix = "ACCELERATE_DYNAMO_"
@@ -552,6 +553,8 @@ class TorchDynamoPlugin(KwargsHandler):
             self.fullgraph = str_to_bool(os.environ.get(prefix + "USE_FULLGRAPH", "False")) == 1
         if self.dynamic is None:
             self.dynamic = str_to_bool(os.environ.get(prefix + "USE_DYNAMIC", "False")) == 1
+        if self.quant is None:
+            self.quant = os.environ.get(prefix + "QUANT", None)
 
     def to_dict(self):
         dynamo_config = copy.deepcopy(self.__dict__)

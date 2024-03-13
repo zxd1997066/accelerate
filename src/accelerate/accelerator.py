@@ -1413,6 +1413,54 @@ class Accelerator:
         if self.state.dynamo_plugin.backend != DynamoBackend.NO and not is_compiled_module(model):
             if not is_torch_version(">=", "2.0"):
                 raise ValueError("Using `torch.compile` requires PyTorch 2.0 or higher.")
+            if self.state.dynamo_plugin.backend.lower() == "inductor" and evaluation_mode:
+                torch._inductor.config.freezing = True
+                if self.state.dynamo_plugin.quant is not None:
+                    from torch.ao.quantization.quantize_pt2e import prepare_pt2e, prepare_qat_pt2e, convert_pt2e
+                    import torch.ao.quantization.quantizer.x86_inductor_quantizer as xiq
+                    from torch._export import capture_pre_autograd_graph
+                    from torch.export import Dim
+                    is_dynamic = True if "dynamic" in self.state.dynamo_plugin.quant.lower() else False
+                    if is_dynamic:
+                        print("Dynamic quantization start...")
+                    else:
+                        print("Static quantization start...")
+                    quantizer = xiq.X86InductorQuantizer()
+                    quantizer.set_global(xiq.get_default_x86_inductor_quantization_config(is_dynamic=is_dynamic))
+                    example_inputs = dict(next(iter(self._dataloaders[0])))
+                    input_shapes = {k: list(v.shape) for (k, v) in example_inputs.items()}
+                    print(input_shapes)
+                    dims = set()
+                    for _, v in input_shapes.items():
+                        dims.update(v)
+                    dim_str_map = {x: Dim("dim" + str(list(dims).index(x))) for x in dims}
+                    dynamic_shapes = {k: {v.index(dim): dim_str_map[dim] for dim in v} for (k, v) in input_shapes.items()}
+                    if "labels" in dynamic_shapes.keys():
+                        for k in dynamic_shapes.keys():
+                            if k != "labels":
+                                tmp_dims = input_shapes[k]
+                                for tmp_dim in input_shapes[k]:
+                                    if tmp_dim not in input_shapes['labels']:
+                                        del dynamic_shapes[k][input_shapes[k].index(tmp_dim)]
+                    print(dynamic_shapes)
+
+                    with torch.no_grad():
+                        print("======================= export model ===============================")
+                        exported_model = capture_pre_autograd_graph(
+                                model,
+                                (),
+                                kwargs=example_inputs,
+                                dynamic_shapes=dynamic_shapes,
+                            )
+                        print("======================= prepare model ===============================")
+                        prepared_model = prepare_pt2e(exported_model, quantizer)
+                        print("======================= convert model ===============================")
+                        prepared_model(**example_inputs)
+                        converted_model = convert_pt2e(prepared_model)
+                        torch.ao.quantization.move_exported_model_to_eval(converted_model)
+                        model = converted_model
+                        print("======================= compile model ===============================")
+                        del self.state.dynamo_plugin.quant
             model = torch.compile(model, **self.state.dynamo_plugin.to_kwargs())
         return model
 
