@@ -1461,7 +1461,8 @@ class Accelerator:
                         model = converted_model
                         print("======================= compile model ===============================")
                         del self.state.dynamo_plugin.quant
-            model = torch.compile(model, **self.state.dynamo_plugin.to_kwargs())
+                        model = torch.compile(model, **self.state.dynamo_plugin.to_kwargs(), dynamic=True)
+                        model(**example_inputs)
         return model
 
     def _prepare_deepspeed(self, *args):
