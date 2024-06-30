@@ -1433,7 +1433,8 @@ class Accelerator:
                     dims = set()
                     for _, v in input_shapes.items():
                         dims.update(v)
-                    dim_str_map = {x: Dim("dim" + str(list(dims).index(x))) for x in dims}
+                    # dim_str_map = {x: Dim("dim" + str(list(dims).index(x))) for x in dims}
+                    dim_str_map = {x: Dim("dim" + str(list(dims).index(x)), max=1024 * 1024) for x in dims}
                     dynamic_shapes = {k: {v.index(dim): dim_str_map[dim] for dim in v} for (k, v) in input_shapes.items()}
                     if "labels" in dynamic_shapes.keys():
                         for k in dynamic_shapes.keys():
