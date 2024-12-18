@@ -1447,12 +1447,12 @@ class Accelerator:
 
                     with torch.no_grad():
                         print("======================= export model ===============================")
-                        exported_model = capture_pre_autograd_graph(
+                        exported_model = torch.export.export_for_training(
                                 model,
                                 (),
                                 kwargs=example_inputs,
                                 dynamic_shapes=dynamic_shapes,
-                            )
+                            ).module()
                         print("======================= prepare model ===============================")
                         prepared_model = prepare_pt2e(exported_model, quantizer)
                         print("======================= convert model ===============================")
