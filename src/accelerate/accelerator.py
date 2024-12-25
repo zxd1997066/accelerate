@@ -1418,7 +1418,6 @@ class Accelerator:
                 if self.state.dynamo_plugin.quant is not None:
                     from torch.ao.quantization.quantize_pt2e import prepare_pt2e, prepare_qat_pt2e, convert_pt2e
                     import torch.ao.quantization.quantizer.x86_inductor_quantizer as xiq
-                    from torch._export import capture_pre_autograd_graph
                     from torch.export import Dim
                     is_dynamic = True if "dynamic" in self.state.dynamo_plugin.quant.lower() else False
                     if is_dynamic:
